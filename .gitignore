@@ -2,5 +2,10 @@ models/
 data/
 .ipynb_checkpoints/
 __pycache__/
-annotations/
+image_info_test2014/annotations/
+annotations_trainval2014/
 .DS_Store
+test2014/
+train2014/
+val2014/
+*.zip
