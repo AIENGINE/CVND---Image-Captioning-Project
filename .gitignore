@@ -9,3 +9,4 @@ test2014/
 train2014/
 val2014/
 *.zip
+*.pkl
