@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torchvision.models as models
 import torch.nn.functional as F
+import numpy as np
 
 
 class EncoderCNN(nn.Module):
@@ -77,34 +78,61 @@ class DecoderRNN(nn.Module):
         return x
 
 
+    # def sample(self, inputs, states=None, max_len=20):
+    #     " accepts pre-processed image tensor (inputs) and returns predicted sentence (list of tensor ids of length max_len) "
+    #     print(f"input dim: {inputs.shape}")
+    #     sent_idx = []
+    #     hc = states
+    #     top_word_idx = torch.zeros(1, 20)
+    #     for idx in range(max_len):
+    #     # while True:
+
+    #         lstm_out, hc = self.lstm(inputs, hc)
+    #         # print(f"lstm_out dim: {lstm_out.shape}, hidden shape: {hc[0].shape}, {hc[1].shape}")
+    #         linear_out = self.linear(lstm_out.reshape(-1, self.hidden_dim))
+    #         # tag_scores = F.log_softmax(linear_out, dim=1)
+    #         pred, top_word_idx = torch.max(linear_out, dim=1)
+    #         print(f"pred score: {pred}, word idx: {top_word_idx}, {top_word_idx.shape}")
+    #         inputs = self.feature_embeddings(top_word_idx)
+    #         inputs = inputs.unsqueeze(dim=1)
+    #         top_word_idx = top_word_idx.squeeze().to("cpu").tolist()
+    #         # if top_word_idx == 1:
+    #         sent_idx.append(top_word_idx)
+    #             # break    
+
+
+
+    #     # print(f"top word idx shape: {len(top_word_idx)}")
+    #     print(f"len of sent idx: {len(sent_idx)}")
+    #     return sent_idx
+
     def sample(self, inputs, states=None, max_len=20):
-        " accepts pre-processed image tensor (inputs) and returns predicted sentence (list of tensor ids of length max_len) "
-        print(f"input dim: {inputs.shape}")
+        """ 
+        accepts pre-processed image tensor (inputs) and returns predicted sentence (list of tensor ids of length max_len)
+        a simple implementation of beam search 
+        """
+
         sent_idx = []
         hc = states
         top_word_idx = torch.zeros(1, 20)
+        
         for idx in range(max_len):
-        # while True:
 
             lstm_out, hc = self.lstm(inputs, hc)
             # print(f"lstm_out dim: {lstm_out.shape}, hidden shape: {hc[0].shape}, {hc[1].shape}")
             linear_out = self.linear(lstm_out.reshape(-1, self.hidden_dim))
-            # tag_scores = F.log_softmax(linear_out, dim=1)
-            pred, top_word_idx = torch.max(linear_out, dim=1)
+
+            pred, top_word_idx = torch.topk(input=linear_out, k=2)
+            pred = pred.cpu().detach().numpy().squeeze(0)
+            top_word_idx = top_word_idx.cpu().detach().numpy()
+            top_word_idx = np.random.choice(top_word_idx.squeeze(0), p=pred/pred.sum())
+            top_word_idx = torch.from_numpy(np.expand_dims(top_word_idx.astype('float'), axis=0)).long().cuda()
             print(f"pred score: {pred}, word idx: {top_word_idx}")
+            
             inputs = self.feature_embeddings(top_word_idx)
             inputs = inputs.unsqueeze(dim=1)
             top_word_idx = top_word_idx.squeeze().to("cpu").tolist()
-            # if top_word_idx == 1:
             sent_idx.append(top_word_idx)
-                # break    
 
-        # print(f"top word idx shape: {top_word_idx.shape}")
-        # top_word_idx = top_word_idx.squeeze(dim=0)
-        # top_word_idx = top_word_idx.to("cpu")
-        # top_word_idx = top_word_idx.tolist()
-
-        # print(f"top word idx shape: {len(top_word_idx)}")
-        print(f"len of sent idx: {len(sent_idx)}")
+        print(f"len of sentence token: {len(sent_idx)}")
         return sent_idx
-
